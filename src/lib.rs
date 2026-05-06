@@ -99,7 +99,7 @@ pub use g13::{Device, Error, HandledDeviceRef, Rgb, discovery_loop, list};
 mod handler;
 pub use handler::{DeviceHandler, Handler};
 
-#[cfg(feature = "virtual_keyboard")]
-pub mod virtual_keyboard;
 #[cfg(any(feature = "handler_static", feature = "handler_lua"))]
 pub mod handlers;
+#[cfg(feature = "virtual_keyboard")]
+pub mod virtual_keyboard;
