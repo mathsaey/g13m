@@ -1,0 +1,2 @@
+SUBSYSTEM=="leds", KERNEL=="g13:red:*", RUN+="/usr/bin/chgrp input /sys%p/brightness", RUN+="/bin/chmod 660 /sys%p/brightness"
+SUBSYSTEM=="leds", KERNEL=="g13:rgb:*", RUN+="/usr/bin/chgrp input /sys%p/multi_intensity", RUN+="/bin/chmod 660 /sys%p/multi_intensity"

@@ -1,0 +1,42 @@
+[package]
+name = "g13m"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0"
+readme = "README.md"
+description = "Key mapper for Logitech G13 devices on Linux"
+repository = "https://github.com/mathsaey/g13m"
+
+[[bin]]
+name = "g13m"
+required-features = ["bin"]
+
+[features]
+bin = ["dep:clap", "dep:env_logger", "dep:async-executor", "dep:rust-ini", "dep:nom", "handler_static"]
+
+virtual_keyboard = ["dep:bitflags"]
+handler_static = ["virtual_keyboard"]
+handler_lua = ["virtual_keyboard"]
+
+handler_luajit = ["handler_lua", "mlua/luajit"]
+handler_lua55 = ["handler_lua", "mlua/lua55"]
+handler_lua54 = ["handler_lua", "mlua/lua54"]
+handler_lua53 = ["handler_lua", "mlua/lua53"]
+handler_lua52 = ["handler_lua", "mlua/lua52"]
+handler_lua51 = ["handler_lua", "mlua/lua51"]
+
+[dependencies]
+udev = "0.9"
+evdev = "0.13"
+async-io = "2.6"
+futures-lite = "2.6"
+log = { version = "0.4.29", features = ["release_max_level_info"] }
+mlua = { version = "0.11", optional = true }
+
+# bin feature
+nom = { version = "8", optional = true }
+rust-ini = { version = "0.21", optional = true }
+bitflags = { version = "2.11", optional = true }
+async-executor = { version = "1.14", optional = true }
+clap = { version = "4.6", features = ["derive"], optional = true }
+env_logger = { version = "0.11", default-features = false, features = ["auto-color"], optional = true }
