@@ -79,6 +79,12 @@
 //!   virtual keyboard. Useful to press "real" keys in response to G13 events.
 //! - `bin`: Builds the binary, pulling in a lot of additional dependencies for argument and
 //!   configuration parsing. Requires `handler_static`.
+//!
+//! ### Handlers
+//!
+//! The crate predefines two handlers. They are mainly intended for use by the binary, but can also
+//! be included in library builds by enabling the appropriate feature.
+//!
 //! - `handler_static`: A handler which binds a particular keypress to each key (in each mode) and
 //!   which binds a particular colour to each mode. Requires `virtual_keyboard`.
 //! - `handler_lua*`: A handler which emulates the G-series lua api. You should not activate this

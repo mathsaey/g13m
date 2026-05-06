@@ -12,6 +12,11 @@
 // You should have received a copy of the GNU General Public License along with this program.  If
 // not, see <http://www.gnu.org/licenses/>.
 
+//! Handler which combines static binds with a lua handler.
+//!
+//! This handler combines a [`StaticHandler`] with an (optional) [`LuaHandler`]. It will always
+//! execute the lua handler first.
+
 use crate::handlers::lua_handler::{LuaDeviceHandler, LuaHandler};
 use crate::handlers::static_handler::{StaticDeviceHandler, StaticHandler};
 use crate::{DeviceHandler, HandledDeviceRef, Handler};
@@ -29,6 +34,7 @@ struct CombinedDeviceHandler {
 }
 
 impl CombinedHandler {
+    /// Create a CombinedHandler.
     pub fn new(stc: StaticHandler, lua: Option<LuaHandler>) -> Self {
         CombinedHandler { stc, lua }
     }

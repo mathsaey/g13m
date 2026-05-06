@@ -12,6 +12,10 @@
 // You should have received a copy of the GNU General Public License along with this program.  If
 // not, see <http://www.gnu.org/licenses/>.
 
+//! Maps each G13 key, mode pair to a fixed bind and each mode to a color.
+//!
+//! Create a [`StaticHandler`] with [`StaticHandler::new`].
+
 use std::fmt::Debug;
 use std::io;
 use std::ops::Range;
@@ -22,7 +26,32 @@ use bitflags::bitflags;
 use crate::virtual_keyboard::{Bind, VirtualKeyboard};
 use crate::{DeviceHandler, Error, HandledDeviceRef, Handler, Rgb};
 
+/// Keybinds for each key.
+///
+/// This is an array of arrays of `Option<Bind>`s. The outer array contains 3 items. The first (at
+/// index 0) contains the keybinds for M1. The second (index 1) for M2, the third (index 2) for M3.
+/// The inner array contains a [`Bind`] for each key. The meaning of each index is shown in the
+/// table below.
+///
+/// | Index | Key |
+/// | ----- | --- |
+/// | 0     | G1  |
+/// | 1     | G2  |
+/// | ...   | ... |
+/// | 21    | G22 |
+/// | 22    | left thumb key |
+/// | 23    | bottom thumb key |
+/// | 24    | joystick key |
+/// | 25    | joystick up |
+/// | 26    | joystick down |
+/// | 27    | joystick left |
+/// | 28    | joystick right |
 pub type Binds = [[Option<Bind>; 29]; 3];
+
+/// Colors for each mode.
+///
+/// This is an array of `Option<Rgb>`. The array contains 3 items, each of which represents the
+/// [`Rgb`] color of a mode.
 pub type Colors = [Option<Rgb>; 3];
 
 const JS_DEADZONE: Range<i32> = (127 - 50)..(127 + 50);
@@ -55,11 +84,12 @@ bitflags! {
 }
 
 impl StaticHandler {
-    pub fn new(
-        keyboard: Arc<Mutex<VirtualKeyboard>>,
-        binds: Binds,
-        colors: [Option<Rgb>; 3],
-    ) -> Self {
+    /// Create a static handler.
+    ///
+    /// A static handler is created with a set of [`Binds`] and [`Colors`] which determine how it
+    /// maps the various keys and modes. Please refer to the documentation of each type for more
+    /// information.
+    pub fn new(keyboard: Arc<Mutex<VirtualKeyboard>>, binds: Binds, colors: Colors) -> Self {
         StaticHandler {
             keyboard,
             binds: Arc::new(binds),

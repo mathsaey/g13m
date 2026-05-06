@@ -12,6 +12,52 @@
 // You should have received a copy of the GNU General Public License along with this program.  If
 // not, see <http://www.gnu.org/licenses/>.
 
+//! Calls functions in a lua script in response to events.
+//!
+//! This handler aims to recreate (part of) the Logitech G-series API. It is created with a path to
+//! a script, which should contain an `OnEvent(event, arg, device)` function. This function will be
+//! called for the following events:
+//!
+//! | event | arg | description |
+//! | ----- | --- | ----------- |
+//! | "G_PRESSED" | `i` | Called when a G key is held down, `i` represents the number of the G key which was pressed. |
+//! | "G_RELEASED" | `i` | Called when a G key is released, `i` represents the number of the G key which was released. |
+//! | "M_PRESSED" | `i` | Called when an M key is held down, `i` represents the number of the M key which was pressed. |
+//! | "M_RELEASED" | `i` | Called when an G key is released, `i` represents the number of the M key which was released. |
+//!
+//! The third argument (`device`) is currently always `"lhc"`.
+//!
+//! The following events are currently not supported: "PROFILE_ACTIVATED", "PROFILE_DEACTIVATED",
+//! "MOUSE_BUTTON_PRESSED", "MOUSE_BUTTON_RELEASED".
+//!
+//! The following functions can be called.
+//!
+//! | function | arguments | description |
+//! | -------- | --------- | ----------- |
+//! | PressKey | variable amount of keycodes or scancodes | Press the provided keys, in order. Keys can be provided as a keycode (i.e. a name, see [`crate::virtual_keyboard`]) or a scancode (an index). |
+//! | ReleaseKey | variable amount of keycodes or scancodes | Release the provided keys, in order. Keys can be provided as a keycode (i.e. a name, see [`crate::virtual_keyboard`]) or a scancode (an index). |
+//! | PressAndReleaseKey | variable amount of keycodes or scancodes | Press and release the provided keys, in order. Keys can be provided as a keycode (i.e. a name, see [`crate::virtual_keyboard`]) or a scancode (an index). |
+//! | PressMouseButton | index between 1 and 5 | Press the provided mouse button. [`crate::virtual_keyboard`] details which mouse index maps to which mouse button.
+//! | ReleaseMouseButton | index between 1 and 5 | Release the provided mouse button. [`crate::virtual_keyboard`] details which mouse index maps to which mouse button.
+//! | PressandReleaseMouseButton | index between 1 and 5 | Press and release the provided mouse button. [`crate::virtual_keyboard`] details which mouse index maps to which mouse button.
+//! | GetMKeyState | | Get the currently active M state. |
+//! | SetMKeyState | i | Set the M state to `i`. |
+//! | SetBacklightColor | r, g, b | Change the backlight color to the provided rgb value. |
+//! | Sleep | time | Sleep `time` ms. Blocks the handler while sleeping. |
+//! | GetDate | | Mirror of `os.date`. |
+//! | GetRunningTime | | Get the time in ms the handler has been running. |
+//! | OutputLogMessage | msg, arg1, arg2, ... | Output a log message. `msg` is formatted with the provided `arg`s using `string.format`. |
+//! | OutputDebugMessage | msg, arg1, arg2, ... | Output a debug message. `msg` is formatted with the provided `arg`s using `string.format`. Note that this message will not show up in release builds. |
+//!
+//! The following functions provided by G-series API are currently not supported. Calling them will
+//! log an error but not crash the lua script.
+//!
+//!  OutputLCDMessage, ClearLCD, PlayMacro, AbortMacro, ClearLog, IsKeyLockOn, IsModifierPressed,
+//!  IsMouseButtonPressed, MoveMouseTo, MoveMouseWheel, MoveMouseRelative, MoveMouseToVirtual,
+//!  GetMousePosition, SetMouseDPITable, SetMouseDPITableIndex, EnablePrimaryMouseButtonEvents,
+//!  SetMouseSpeed, GetMouseSpeed, IncrementMouseSpeed, DecrementMouseSpeed,
+//!  SetSteeringWheelProperty
+
 use std::io;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
