@@ -233,6 +233,8 @@ fn parse_key(s: &str) -> IResult<&str, KeyCode> {
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
     let modifier = alt((
+        // TODO: use string_to_code here so names are only defined in one place.
+        // To make this work we need a keycode -> modifier mapping.
         value(Modifiers::L_SHIFT, tag_no_case("shift")),
         value(Modifiers::L_SHIFT, tag_no_case("lshift")),
         value(Modifiers::R_SHIFT, tag_no_case("rshift")),
