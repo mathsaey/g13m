@@ -85,6 +85,7 @@
 //!   feature directly, instead, use `handler_luajit`, `handler_lua54`, `handler_lua53`,
 //!   `handler_lua52`, or `handler_lua51` to enable the `mlua` crate to enable support for the
 //!   appropriate lua version. Requires `virtual_keyboard`.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod g13;
 pub use g13::{Device, Error, HandledDeviceRef, Rgb, discovery_loop, list};
