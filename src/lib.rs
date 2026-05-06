@@ -94,6 +94,5 @@ pub use handler::{DeviceHandler, Handler};
 
 #[cfg(feature = "virtual_keyboard")]
 pub mod virtual_keyboard;
-
-#[cfg(feature = "handler_static")]
+#[cfg(any(feature = "handler_static", feature = "handler_lua"))]
 pub mod handlers;

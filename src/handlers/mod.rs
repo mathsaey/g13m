@@ -18,42 +18,5 @@ pub mod static_handler;
 #[cfg(feature = "handler_lua")]
 pub mod lua_handler;
 
-#[cfg(feature = "handler_static")]
-mod combined_handler;
-#[cfg(feature = "handler_static")]
-pub use combined_handler::CombinedHandler;
-
-// Lua handler placeholder
-// -----------------------
-
-#[cfg(not(feature = "handler_lua"))]
-pub mod lua_handler {
-    use crate::HandledDeviceRef;
-    use crate::handler::{DeviceHandler, Handler};
-    use crate::virtual_keyboard::VirtualKeyboard;
-    use std::{
-        path::Path,
-        sync::{Arc, Mutex},
-    };
-
-    #[derive(Debug)]
-    pub struct LuaHandler {}
-
-    #[derive(Clone, Debug)]
-    pub struct LuaDeviceHandler {}
-
-    impl LuaHandler {
-        pub fn new(_: Arc<Mutex<VirtualKeyboard>>, _: &Path) -> Result<Self, std::io::Error> {
-            Ok(LuaHandler {})
-        }
-    }
-
-    impl Handler for LuaHandler {
-        #[allow(refining_impl_trait)]
-        fn handler_for_device(&self, _: HandledDeviceRef) -> LuaDeviceHandler {
-            LuaDeviceHandler {}
-        }
-    }
-
-    impl DeviceHandler for LuaDeviceHandler {}
-}
+#[cfg(all(feature = "handler_static", feature = "handler_lua"))]
+pub mod combined_handler;

@@ -12,7 +12,6 @@
 // You should have received a copy of the GNU General Public License along with this program.  If
 // not, see <http://www.gnu.org/licenses/>.
 
-#[allow(unused_imports)]
 use crate::handlers::lua_handler::{LuaDeviceHandler, LuaHandler};
 use crate::handlers::static_handler::{StaticDeviceHandler, StaticHandler};
 use crate::{DeviceHandler, HandledDeviceRef, Handler};
@@ -20,14 +19,12 @@ use crate::{DeviceHandler, HandledDeviceRef, Handler};
 #[derive(Debug)]
 pub struct CombinedHandler {
     stc: StaticHandler,
-    #[allow(unused)]
     lua: Option<LuaHandler>,
 }
 
 #[derive(Clone, Debug)]
 struct CombinedDeviceHandler {
     stc: StaticDeviceHandler,
-    #[cfg(feature = "handler_lua")]
     lua: Option<LuaDeviceHandler>,
 }
 
@@ -42,7 +39,6 @@ impl Handler for CombinedHandler {
         CombinedDeviceHandler {
             stc: self.stc.handler_for_device(device_ref.clone()),
 
-            #[cfg(feature = "handler_lua")]
             lua: self
                 .lua
                 .as_ref()
@@ -53,7 +49,6 @@ impl Handler for CombinedHandler {
 
 impl DeviceHandler for CombinedDeviceHandler {
     fn g_key_down(&mut self, key: u16) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.g_key_down(key)
         };
@@ -61,7 +56,6 @@ impl DeviceHandler for CombinedDeviceHandler {
     }
 
     fn g_key_up(&mut self, key: u16) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.g_key_up(key)
         };
@@ -69,7 +63,6 @@ impl DeviceHandler for CombinedDeviceHandler {
     }
 
     fn m_key_down(&mut self, key: u16) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.m_key_down(key)
         };
@@ -77,7 +70,6 @@ impl DeviceHandler for CombinedDeviceHandler {
     }
 
     fn m_key_up(&mut self, key: u16) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.m_key_up(key)
         };
@@ -85,7 +77,6 @@ impl DeviceHandler for CombinedDeviceHandler {
     }
 
     fn x_axis(&mut self, val: i32) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.x_axis(val)
         };
@@ -93,7 +84,6 @@ impl DeviceHandler for CombinedDeviceHandler {
     }
 
     fn y_axis(&mut self, val: i32) {
-        #[cfg(feature = "handler_lua")]
         if let Some(lua) = self.lua.as_mut() {
             lua.y_axis(val)
         };

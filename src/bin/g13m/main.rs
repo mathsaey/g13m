@@ -21,8 +21,11 @@ use async_executor::LocalExecutor;
 use clap::Parser;
 use futures_lite::future;
 
-use g13m::handlers::{CombinedHandler, lua_handler::LuaHandler, static_handler::StaticHandler};
+use g13m::handlers::static_handler::*;
 use g13m::{virtual_keyboard::VirtualKeyboard, *};
+
+#[cfg(feature = "handler_lua")]
+use g13m::handlers::{combined_handler::*, lua_handler::*};
 
 mod config;
 
@@ -202,6 +205,8 @@ fn main() {
 
     let config_path = get_config_path(&cli);
     log::info!("Reading profile: {}", config_path.display());
+
+    #[allow(unused_variables)]
     let (binds, colors, lua_path) = config::load(&config_path);
 
     let keyboard = Arc::new(Mutex::new(VirtualKeyboard::new().unwrap_or_else(|err| {
@@ -209,6 +214,9 @@ fn main() {
         exit(1);
     })));
 
+    let static_handler = StaticHandler::new(keyboard.clone(), binds, colors);
+
+    #[cfg(feature = "handler_lua")]
     let lua_handler = lua_path.map(|path| {
         log::info!("Reading lua script: {}", path.display());
         LuaHandler::new(keyboard.clone(), &path).unwrap_or_else(|err| {
@@ -217,8 +225,11 @@ fn main() {
         })
     });
 
-    let static_handler = StaticHandler::new(keyboard.clone(), binds, colors);
+    #[cfg(feature = "handler_lua")]
     let handler = CombinedHandler::new(static_handler, lua_handler);
+
+    #[cfg(not(feature = "handler_lua"))]
+    let handler = static_handler;
 
     if let Some(path) = cli.device {
         device_mode(path, handler)
