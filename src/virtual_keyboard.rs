@@ -177,6 +177,9 @@ supported_keys!(
     ("meta", KeyCode::KEY_LEFTMETA),
     ("lmeta", KeyCode::KEY_LEFTMETA),
     ("rmeta", KeyCode::KEY_RIGHTMETA),
+    ("super", KeyCode::KEY_LEFTMETA),
+    ("lsuper", KeyCode::KEY_LEFTMETA),
+    ("rsuper", KeyCode::KEY_RIGHTMETA),
     //
     ("esc", KeyCode::KEY_ESC),
     ("enter", KeyCode::KEY_ENTER),
