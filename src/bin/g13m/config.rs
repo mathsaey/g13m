@@ -220,15 +220,15 @@ fn parse_script_path(s: &str) -> IResult<&str, Script> {
     all_consuming(map(rest, |path: &str| Script::Path(PathBuf::from(path)))).parse(s)
 }
 
-fn parse_key(s: &str) -> IResult<&str, KeyCode> {
-    all_consuming(map_opt(alphanumeric1, string_to_code)).parse(s)
-}
-
 fn parse_bind(s: &str) -> Result<Bind, Error<&str>> {
     (parse_modifiers, parse_key)
         .parse(s)
         .finish()
         .map(|(_, v)| v)
+}
+
+fn parse_key(s: &str) -> IResult<&str, KeyCode> {
+    all_consuming(map_opt(alphanumeric1, string_to_code)).parse(s)
 }
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
