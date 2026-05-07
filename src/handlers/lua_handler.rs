@@ -60,6 +60,7 @@
 
 use std::io;
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -74,21 +75,21 @@ use crate::{DeviceHandler, HandledDeviceRef, Handler};
 pub struct LuaHandler {
     keyboard: Arc<Mutex<VirtualKeyboard>>,
     callback: LuaFunction,
-    lua: Arc<Lua>,
+    lua: Rc<Lua>,
 }
 
 #[derive(Clone, Debug)]
 pub struct LuaDeviceHandler {
     keyboard: Arc<Mutex<VirtualKeyboard>>,
     callback: LuaFunction,
-    lua: Arc<Lua>,
+    lua: Rc<Lua>,
     start: Arc<Instant>,
     device_ref: HandledDeviceRef,
 }
 
 impl LuaHandler {
     pub fn new(keyboard: Arc<Mutex<VirtualKeyboard>>, path: &Path) -> LuaResult<Self> {
-        let lua = Arc::new(Lua::new());
+        let lua = Rc::new(Lua::new());
         lua.load(path).exec()?;
 
         let callback: LuaFunction = lua.globals().get("OnEvent")?;
