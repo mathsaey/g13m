@@ -102,7 +102,12 @@ fn get_config_path(cli: &Cli) -> PathBuf {
         None => {
             let mut home = env::var_os("XDG_CONFIG_HOME")
                 .map(PathBuf::from)
-                .or_else(env::home_dir)
+                .or_else(|| {
+                    env::home_dir().map(|mut path| {
+                        path.push(".config");
+                        path
+                    })
+                })
                 .unwrap_or_else(|| {
                     log::error!("Could not find home directory");
                     exit(1);
