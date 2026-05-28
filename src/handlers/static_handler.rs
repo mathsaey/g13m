@@ -54,7 +54,9 @@ pub type Binds = [[Option<Bind>; 29]; 3];
 /// [`Rgb`] color of a mode.
 pub type Colors = [Option<Rgb>; 3];
 
-const JS_DEADZONE: Range<i32> = (127 - 50)..(127 + 50);
+const JS_MAX: i32 = 127;
+const JS_DEADZONE_SIZE: i32 = 75;
+const JS_DEADZONE: Range<i32> = (JS_MAX - JS_DEADZONE_SIZE)..(JS_MAX + JS_DEADZONE_SIZE);
 
 #[derive(Debug)]
 pub struct StaticHandler {
