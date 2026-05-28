@@ -164,6 +164,23 @@ impl fmt::Display for Modifiers {
 }
 
 impl Modifiers {
+    /// Convert a [`KeyCode`] to a [`Modifiers`] set.
+    ///
+    /// The set only contains the modifier represented by the keycode.
+    pub fn from_key_code(code: KeyCode) -> Option<Self> {
+        match code {
+            KeyCode::KEY_LEFTSHIFT => Some(Self::L_SHIFT),
+            KeyCode::KEY_RIGHTSHIFT => Some(Self::R_SHIFT),
+            KeyCode::KEY_LEFTALT => Some(Self::L_ALT),
+            KeyCode::KEY_RIGHTALT => Some(Self::R_ALT),
+            KeyCode::KEY_LEFTCTRL => Some(Self::L_CTRL),
+            KeyCode::KEY_RIGHTCTRL => Some(Self::R_CTRL),
+            KeyCode::KEY_LEFTMETA => Some(Self::L_META),
+            KeyCode::KEY_RIGHTMETA => Some(Self::R_META),
+            _ => None,
+        }
+    }
+
     fn to_key_event_vec(self, value: i32) -> Vec<InputEvent> {
         self.iter_keycodes()
             .map(|k| *KeyEvent::new(k, value))

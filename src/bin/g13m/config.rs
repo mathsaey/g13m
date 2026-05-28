@@ -232,26 +232,9 @@ fn parse_key(s: &str) -> IResult<&str, KeyCode> {
 }
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
-    let modifier = alt((
-        // TODO: use string_to_code here so names are only defined in one place.
-        // To make this work we need a keycode -> modifier mapping.
-        value(Modifiers::L_SHIFT, tag_no_case("shift")),
-        value(Modifiers::L_SHIFT, tag_no_case("lshift")),
-        value(Modifiers::R_SHIFT, tag_no_case("rshift")),
-        value(Modifiers::R_ALT, tag_no_case("altgr")),
-        value(Modifiers::L_ALT, tag_no_case("alt")),
-        value(Modifiers::L_ALT, tag_no_case("lalt")),
-        value(Modifiers::R_ALT, tag_no_case("ralt")),
-        value(Modifiers::L_CTRL, tag_no_case("ctrl")),
-        value(Modifiers::L_CTRL, tag_no_case("lctrl")),
-        value(Modifiers::R_CTRL, tag_no_case("rctrl")),
-        value(Modifiers::L_META, tag_no_case("meta")),
-        value(Modifiers::L_META, tag_no_case("lmeta")),
-        value(Modifiers::R_META, tag_no_case("rmeta")),
-        value(Modifiers::L_META, tag_no_case("super")),
-        value(Modifiers::L_META, tag_no_case("lsuper")),
-        value(Modifiers::R_META, tag_no_case("rsuper")),
-    ));
+    let modifier = map_opt(alphanumeric1, |s: &str| {
+        string_to_code(s).and_then(Modifiers::from_key_code)
+    });
 
     fold(
         0..,
