@@ -247,8 +247,8 @@ impl VirtualKeyboard {
     /// Release a held key [`Bind`].
     pub fn key_up(&mut self, (modifiers, code): Bind) -> io::Result<()> {
         log::trace!("Key up {:?} {:?}", modifiers, code);
-        self.0.emit(&modifiers.to_key_event_vec(0))?;
         self.0.emit(&[*KeyEvent::new(code, 0)])?;
+        self.0.emit(&modifiers.to_key_event_vec(0))?;
         Ok(())
     }
 
