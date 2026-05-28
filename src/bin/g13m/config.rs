@@ -228,7 +228,7 @@ fn parse_bind(s: &str) -> Result<Bind, Error<&str>> {
 }
 
 fn parse_key(s: &str) -> IResult<&str, KeyCode> {
-    all_consuming(map_opt(alphanumeric1, string_to_code)).parse(s)
+    all_consuming(map_opt(rest, string_to_code)).parse(s)
 }
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
