@@ -463,8 +463,15 @@ impl Device {
     /// This function will be called with a [`HandledDeviceRef`], which can be used to interact
     /// with the g13 while the event loop is running.
     pub async fn into_event_loop(self, handler: &impl Handler) -> io::Result<()> {
-        let device_ref =
-            HandledDeviceRef::from_device(self.syspath, self.m_leds, self.mr_led, self.backlight);
+        let device_ref = HandledDeviceRef {
+            syspath: self.syspath,
+            device_ref: Arc::new(Mutex::new(HandledDevice {
+                mode: 0,
+                m_leds: self.m_leds,
+                _mr_led: self.mr_led,
+                backlight: self.backlight,
+            })),
+        };
         let device_handler = handler.handler_for_device(device_ref.clone());
 
         let result = future::try_zip(
@@ -485,25 +492,6 @@ impl Device {
 }
 
 impl HandledDeviceRef {
-    fn from_device(
-        syspath: PathBuf,
-        m_leds: [RedLed; 3],
-        _mr_led: RedLed,
-        backlight: BackLight,
-    ) -> Self {
-        let device = HandledDevice {
-            mode: 0,
-            m_leds,
-            _mr_led,
-            backlight,
-        };
-
-        Self {
-            syspath,
-            device_ref: Arc::new(Mutex::new(device)),
-        }
-    }
-
     fn dev(&self) -> MutexGuard<'_, HandledDevice> {
         self.device_ref.lock().unwrap()
     }
