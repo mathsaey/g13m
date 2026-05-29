@@ -338,6 +338,9 @@ async fn device_loop(
     device_ref: HandledDeviceRef,
     mut handler: impl DeviceHandler,
 ) -> io::Result<()> {
+    // Avoid other applications responding to events
+    raw_device.grab()?;
+
     let poller = Async::new(raw_device.as_fd().try_clone_to_owned()?)?;
     loop {
         poller.readable().await?;
