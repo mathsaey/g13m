@@ -118,7 +118,6 @@
 //! | [`KeyCode::KEY_F11`] | f11 |
 //! | [`KeyCode::KEY_F12`] | f12 |
 
-use bitflags::bitflags;
 use evdev::{AttributeSet, InputEvent, KeyEvent, uinput::VirtualDevice};
 use std::{fmt, io};
 
@@ -135,63 +134,51 @@ pub use evdev::KeyCode;
 /// A single keybind consisting of a [`KeyCode`] and [`Modifiers`]
 pub type Bind = (Modifiers, KeyCode);
 
-bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Don't expose all the bitflags wrappers, selecively export them instead.
+mod modifiers_wrapper {
+    use bitflags::bitflags;
 
-    /// Set of modifier keys (shift, alt, ...) to press.
-    ///
-    /// This struct represents a set of modifier keys to press. The constants exported by this type
-    /// can be used to select a particular modifier to press.
-    pub struct Modifiers: u8 {
-        const L_SHIFT = 1 << 0;
-        const R_SHIFT = 1 << 1;
-        const L_CTRL  = 1 << 2;
-        const R_CTRL  = 1 << 3;
-        const L_ALT   = 1 << 4;
-        const R_ALT   = 1 << 5;
-        const L_META  = 1 << 6;
-        const R_META  = 1 << 7;
-    }
-}
-
-impl fmt::Display for Modifiers {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut pressed = Vec::with_capacity(8);
-
-        for flag in self.iter() {
-            match flag {
-                Modifiers::L_SHIFT => pressed.push("LSHIFT"),
-                Modifiers::R_SHIFT => pressed.push("RSHIFT"),
-                Modifiers::L_CTRL => pressed.push("LCTRL"),
-                Modifiers::R_CTRL => pressed.push("RCTRL"),
-                Modifiers::L_ALT => pressed.push("LALT"),
-                Modifiers::R_ALT => pressed.push("RALT"),
-                Modifiers::L_META => pressed.push("LSUPER"),
-                Modifiers::R_META => pressed.push("RSUPER"),
-                _ => (),
-            };
+    bitflags! {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub struct Modifiers: u8 {
+            const L_SHIFT = 1 << 0;
+            const R_SHIFT = 1 << 1;
+            const L_CTRL  = 1 << 2;
+            const R_CTRL  = 1 << 3;
+            const L_ALT   = 1 << 4;
+            const R_ALT   = 1 << 5;
+            const L_META  = 1 << 6;
+            const R_META  = 1 << 7;
         }
-
-        write!(f, "{}", pressed.join("+"))
     }
 }
+
+/// Set of modifier keys (shift, alt, ...) to press.
+///
+/// This struct contains a compact representation of a set of modifiers keys to press.
+/// [`Modifiers::none`] can be used to represent the notion of no pressed modifiers, while
+/// [`Modifiers::union`] can be used to combine two sets of modifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Modifiers(modifiers_wrapper::Modifiers);
 
 impl Modifiers {
-    /// Convert a [`KeyCode`] to a [`Modifiers`] set.
-    ///
-    /// The set only contains the modifier represented by the keycode.
-    pub fn from_key_code(code: KeyCode) -> Option<Self> {
-        match code {
-            KeyCode::KEY_LEFTSHIFT => Some(Self::L_SHIFT),
-            KeyCode::KEY_RIGHTSHIFT => Some(Self::R_SHIFT),
-            KeyCode::KEY_LEFTALT => Some(Self::L_ALT),
-            KeyCode::KEY_RIGHTALT => Some(Self::R_ALT),
-            KeyCode::KEY_LEFTCTRL => Some(Self::L_CTRL),
-            KeyCode::KEY_RIGHTCTRL => Some(Self::R_CTRL),
-            KeyCode::KEY_LEFTMETA => Some(Self::L_META),
-            KeyCode::KEY_RIGHTMETA => Some(Self::R_META),
-            _ => None,
-        }
+    pub const L_SHIFT: Self = Self(modifiers_wrapper::Modifiers::L_SHIFT);
+    pub const R_SHIFT: Self = Self(modifiers_wrapper::Modifiers::R_SHIFT);
+    pub const L_CTRL: Self = Self(modifiers_wrapper::Modifiers::L_CTRL);
+    pub const R_CTRL: Self = Self(modifiers_wrapper::Modifiers::R_CTRL);
+    pub const L_ALT: Self = Self(modifiers_wrapper::Modifiers::L_ALT);
+    pub const R_ALT: Self = Self(modifiers_wrapper::Modifiers::R_ALT);
+    pub const L_META: Self = Self(modifiers_wrapper::Modifiers::L_META);
+    pub const R_META: Self = Self(modifiers_wrapper::Modifiers::R_META);
+
+    /// A set with no pressed modifiers.
+    pub fn none() -> Self {
+        Self(modifiers_wrapper::Modifiers::empty())
+    }
+
+    /// Combine two sets of modifiers.
+    pub fn union(self, other: Self) -> Self {
+        Self(self.0.union(other.0))
     }
 
     fn to_key_event_vec(self, value: i32) -> Vec<InputEvent> {
@@ -201,21 +188,29 @@ impl Modifiers {
     }
 
     fn iter_keycodes(&self) -> impl Iterator<Item = KeyCode> {
-        self.iter().map(|f| f.to_keycode())
+        self.0.iter().map(|f| Self(f).to_keycode())
     }
+}
 
-    fn to_keycode(self) -> KeyCode {
-        match self {
-            Modifiers::L_SHIFT => KeyCode::KEY_LEFTSHIFT,
-            Modifiers::R_SHIFT => KeyCode::KEY_RIGHTSHIFT,
-            Modifiers::L_CTRL => KeyCode::KEY_LEFTCTRL,
-            Modifiers::R_CTRL => KeyCode::KEY_RIGHTCTRL,
-            Modifiers::L_ALT => KeyCode::KEY_LEFTALT,
-            Modifiers::R_ALT => KeyCode::KEY_RIGHTALT,
-            Modifiers::L_META => KeyCode::KEY_LEFTMETA,
-            Modifiers::R_META => KeyCode::KEY_RIGHTMETA,
-            _ => panic!("Invalid modifier variant"),
+impl fmt::Display for Modifiers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut pressed = Vec::with_capacity(8);
+
+        for flag in self.0.iter() {
+            match flag {
+                modifiers_wrapper::Modifiers::L_SHIFT => pressed.push("LSHIFT"),
+                modifiers_wrapper::Modifiers::R_SHIFT => pressed.push("RSHIFT"),
+                modifiers_wrapper::Modifiers::L_CTRL => pressed.push("LCTRL"),
+                modifiers_wrapper::Modifiers::R_CTRL => pressed.push("RCTRL"),
+                modifiers_wrapper::Modifiers::L_ALT => pressed.push("LALT"),
+                modifiers_wrapper::Modifiers::R_ALT => pressed.push("RALT"),
+                modifiers_wrapper::Modifiers::L_META => pressed.push("LSUPER"),
+                modifiers_wrapper::Modifiers::R_META => pressed.push("RSUPER"),
+                _ => (),
+            };
         }
+
+        write!(f, "{}", pressed.join("+"))
     }
 }
 
@@ -327,6 +322,28 @@ macro_rules! buttons {
                 $($($mod_name)|* => Some($mod_key),)*
                 $($key_name => Some($key_key),)*
                 _ => None
+            }
+        }
+
+        impl Modifiers {
+            /// Create a modifier from its name.
+            ///
+            /// Return `None` if the name is not a valid modifier name.
+            /// The provided string is downcased before it is matched.
+            ///
+            /// See the module documentation for the list of supported keys and their names.
+            pub fn from_name(s: &str) -> Option<Self> {
+                match s.to_lowercase().as_str() {
+                    $($( $mod_name)|* => Some($mod_mod),)*
+                    _ => None
+                }
+            }
+
+            fn to_keycode(self) -> KeyCode {
+                match self {
+                    $($mod_mod => $mod_key,)*
+                    _ => panic!("Invalid modifier variant"),
+                }
             }
         }
 

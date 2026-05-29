@@ -232,14 +232,12 @@ fn parse_key(s: &str) -> IResult<&str, KeyCode> {
 }
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
-    let modifier = map_opt(alphanumeric1, |s: &str| {
-        string_to_code(s).and_then(Modifiers::from_key_code)
-    });
+    let modifier = map_opt(alphanumeric1, Modifiers::from_name);
 
     fold(
         0..,
         terminated(modifier, delimited(space0, char('+'), space0)),
-        Modifiers::empty,
+        Modifiers::none,
         Modifiers::union,
     )
     .parse(s)
