@@ -68,7 +68,7 @@ use std::time::{Duration, Instant};
 use mlua::prelude::*;
 
 use crate::Rgb;
-use crate::virtual_keyboard::{Bind, KeyCode, Modifiers, VirtualKeyboard, string_to_code};
+use crate::virtual_keyboard::{Button, VirtualKeyboard};
 use crate::{DeviceHandler, HandledDeviceRef, Handler};
 
 #[derive(Debug)]
@@ -150,28 +150,28 @@ impl LuaDeviceHandler {
     fn bind_functions(&self) -> LuaResult<()> {
         self.bind_function(
             "PressKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::keys_down),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::button_down),
         )?;
         self.bind_function(
             "ReleaseKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::keys_up),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::button_up),
         )?;
         self.bind_function(
             "PressAndReleaseKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::press_keys),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::press_button),
         )?;
 
         self.bind_function(
             "PressMouseButton",
-            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::key_down),
+            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::button_down),
         )?;
         self.bind_function(
             "ReleaseMouseButton",
-            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::key_up),
+            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::button_up),
         )?;
         self.bind_function(
             "PressAndReleaseMouseButton",
-            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::press),
+            create_mouse_button_fun(self.keyboard.clone(), VirtualKeyboard::press_button),
         )?;
 
         self.bind_function(
@@ -273,58 +273,37 @@ fn create_lua_not_implemented(name: &'static str) -> impl LuaNativeFn<(), Output
 
 fn create_key_fun(
     keyboard: Arc<Mutex<VirtualKeyboard>>,
-    fun: fn(&mut VirtualKeyboard, &[KeyCode]) -> io::Result<()>,
+    fun: fn(&mut VirtualKeyboard, Button) -> io::Result<()>,
 ) -> impl LuaNativeFn<(LuaVariadic<LuaValue>,), Output = LuaResult<()>> {
     move |args: LuaVariadic<LuaValue>| {
         let mut kb = keyboard.lock().unwrap();
-        fun(&mut kb, &map_to_keycode(args))?;
+        args.iter()
+            .filter_map(|val| match val {
+                LuaValue::Integer(code) => Some(Button::from_key_code(*code as u16)),
+                LuaValue::String(name) => name.to_str().as_deref().ok().and_then(Button::from_name),
+                _ => None,
+            })
+            .for_each(|btn| {
+                fun(&mut kb, btn).unwrap_or_else(|err| virtual_keyboard_error(err, btn))
+            });
+
         Ok(())
     }
 }
 
-fn map_to_keycode(args: LuaVariadic<LuaValue>) -> Vec<KeyCode> {
-    log::debug!("{:?}", args);
-    let res = args
-        .iter()
-        .filter_map(|val| match val {
-            LuaValue::Integer(scancode) => Some(KeyCode(*scancode as u16)),
-            LuaValue::String(keyname) => keyname.to_str().as_deref().ok().and_then(string_to_code),
-            _ => None,
-        })
-        .collect();
-    log::debug!("{:?}", res);
-
-    res
-}
-
 fn create_mouse_button_fun(
     keyboard: Arc<Mutex<VirtualKeyboard>>,
-    fun: fn(&mut VirtualKeyboard, Bind) -> io::Result<()>,
+    fun: fn(&mut VirtualKeyboard, Button) -> io::Result<()>,
 ) -> impl LuaNativeFn<(u16,), Output = LuaResult<()>> {
     move |m: u16| {
-        if let Some(bind) = map_mouse_button(m) {
+        if let Some(button) = Button::from_mouse_idx(m) {
             let mut kb = keyboard.lock().unwrap();
-            fun(&mut kb, bind)?;
+            fun(&mut kb, button)?;
         } else {
             log::warn!("Ignoring invalid mouse button: {}", m);
         }
         Ok(())
     }
-}
-
-fn map_mouse_button(button: u16) -> Option<Bind> {
-    // Use string_to_ode so that virtual_keyboard is the only source of truth for mapping names to
-    // keycodes. Assume rust will be smart enough to optimise this to a constant lookup.
-    match button {
-        1 => Some("mouse1"),
-        2 => Some("mouse2"),
-        3 => Some("mouse3"),
-        4 => Some("mouse4"),
-        5 => Some("mouse5"),
-        _ => None,
-    }
-    .and_then(string_to_code)
-    .map(|button| (Modifiers::empty(), button))
 }
 
 fn create_get_m_key_state(
@@ -395,4 +374,8 @@ fn create_output_debug_message(
         }
         Ok(())
     }
+}
+
+fn virtual_keyboard_error(error: io::Error, button: Button) {
+    log::error!("Could not press button ({:#?}): {:}", button, error);
 }

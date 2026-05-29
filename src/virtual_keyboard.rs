@@ -118,21 +118,34 @@
 //! | [`KeyCode::KEY_F11`] | f11 |
 //! | [`KeyCode::KEY_F12`] | f12 |
 
-use evdev::{AttributeSet, InputEvent, KeyEvent, uinput::VirtualDevice};
+use evdev::{AttributeSet, KeyCode, KeyEvent, uinput::VirtualDevice};
 use std::{fmt, io};
 
-/// Wrapper around an evdev [`KeyCode`]
-///
-/// This type represents a single key on the virtual keyboard or on the mouse.
-/// Note that only certain keys can be pressed on the virtual keyboard. See the module
-/// documentation for more information.
-///
-/// ## Original evdev documentation
-///
-pub use evdev::KeyCode;
+/// A single keybind consisting of a [`Button`] and [`Modifiers`]
+pub type Bind = (Modifiers, Button);
 
-/// A single keybind consisting of a [`KeyCode`] and [`Modifiers`]
-pub type Bind = (Modifiers, KeyCode);
+/// A single button on the keyboard or mouse to press.
+#[derive(Debug, Copy, Clone)]
+pub struct Button(KeyCode);
+
+/// Set of modifier keys (shift, alt, ...) to press.
+///
+/// This struct contains a compact representation of a set of modifiers keys.
+/// [`Modifiers::none`] can be used to represent the notion of no pressed modifiers, while
+/// [`Modifiers::union`] can be used to combine two sets of modifiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Modifiers(modifiers_wrapper::Modifiers);
+
+/// Virtual keyboard device.
+///
+/// This struct represents a virtual keyboard device. Once created, it can be used to press and
+/// release buttons.
+#[derive(Debug)]
+pub struct VirtualKeyboard(VirtualDevice);
+
+// --------- //
+// Modifiers //
+// --------- //
 
 // Don't expose all the bitflags wrappers, selecively export them instead.
 mod modifiers_wrapper {
@@ -152,14 +165,6 @@ mod modifiers_wrapper {
         }
     }
 }
-
-/// Set of modifier keys (shift, alt, ...) to press.
-///
-/// This struct contains a compact representation of a set of modifiers keys to press.
-/// [`Modifiers::none`] can be used to represent the notion of no pressed modifiers, while
-/// [`Modifiers::union`] can be used to combine two sets of modifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Modifiers(modifiers_wrapper::Modifiers);
 
 impl Modifiers {
     pub const L_SHIFT: Self = Self(modifiers_wrapper::Modifiers::L_SHIFT);
@@ -181,14 +186,11 @@ impl Modifiers {
         Self(self.0.union(other.0))
     }
 
-    fn to_key_event_vec(self, value: i32) -> Vec<InputEvent> {
-        self.iter_keycodes()
-            .map(|k| *KeyEvent::new(k, value))
-            .collect::<Vec<_>>()
-    }
-
-    fn iter_keycodes(&self) -> impl Iterator<Item = KeyCode> {
-        self.0.iter().map(|f| Self(f).to_keycode())
+    fn emit(self, device: &mut VirtualDevice, event: i32) -> io::Result<()> {
+        for flag in self.0.iter() {
+            Self(flag).to_button().emit(device, event)?
+        }
+        Ok(())
     }
 }
 
@@ -214,12 +216,29 @@ impl fmt::Display for Modifiers {
     }
 }
 
-/// Virtual keyboard device.
-///
-/// This struct represents a virtual keyboard device. Once created, it can be used to press and
-/// release keys.
-#[derive(Debug)]
-pub struct VirtualKeyboard(VirtualDevice);
+// ------ //
+// Button //
+// ------ //
+
+impl Button {
+    /// Create a button from a raw key code.
+    ///
+    /// This function does not guarantee that the virtual keyboard supports pressing the provided
+    /// button. Prefer using [`Button::from_name`] instead.
+    pub fn from_key_code(code: u16) -> Self {
+        Self(evdev::KeyCode(code))
+    }
+
+    fn emit(self, device: &mut VirtualDevice, event: i32) -> io::Result<()> {
+        log::trace!("Button {:?}: {:?}", self, event);
+        device.emit(&[*KeyEvent::new(self.0, event)])?;
+        Ok(())
+    }
+}
+
+// -------- //
+// Keyboard //
+// -------- //
 
 impl VirtualKeyboard {
     /// Create a new virtual keyboard.
@@ -237,60 +256,43 @@ impl VirtualKeyboard {
         Ok(keyboard)
     }
 
-    /// Push and release a key [`Bind`].
-    pub fn press(&mut self, bind: Bind) -> io::Result<()> {
-        self.key_down(bind)?;
-        self.key_up(bind)?;
+    /// Push and release a [`Bind`].
+    pub fn press_bind(&mut self, bind: Bind) -> io::Result<()> {
+        self.bind_down(bind)?;
+        self.bind_up(bind)?;
         Ok(())
     }
 
-    /// Hold down a key [`Bind`].
-    pub fn key_down(&mut self, (modifiers, code): Bind) -> io::Result<()> {
-        log::trace!("Key down {:?} {:?}", modifiers, code);
-        self.0.emit(&modifiers.to_key_event_vec(1))?;
-        self.0.emit(&[*KeyEvent::new(code, 1)])?;
+    /// Hold down a [`Bind`].
+    pub fn bind_down(&mut self, (modifiers, button): Bind) -> io::Result<()> {
+        modifiers.emit(&mut self.0, 1)?;
+        button.emit(&mut self.0, 1)?;
         Ok(())
     }
 
-    /// Release a held key [`Bind`].
-    pub fn key_up(&mut self, (modifiers, code): Bind) -> io::Result<()> {
-        log::trace!("Key up {:?} {:?}", modifiers, code);
-        self.0.emit(&[*KeyEvent::new(code, 0)])?;
-        self.0.emit(&modifiers.to_key_event_vec(0))?;
+    /// Release a held [`Bind`].
+    pub fn bind_up(&mut self, (modifiers, button): Bind) -> io::Result<()> {
+        button.emit(&mut self.0, 0)?;
+        modifiers.emit(&mut self.0, 0)?;
         Ok(())
     }
 
-    /// Hold down a bunch of keys.
-    ///
-    /// Use this instead of [`VirtualKeyboard::key_down`] if you need to push several keys at once
-    /// instead of activating a single [`Bind`].
-    pub fn keys_down(&mut self, keys: &[KeyCode]) -> io::Result<()> {
-        let events: Vec<InputEvent> = keys.iter().map(|&c| *KeyEvent::new(c, 1)).collect();
-        self.0.emit(&events)?;
+    /// Push and release a [`Button`].
+    pub fn press_button(&mut self, button: Button) -> io::Result<()> {
+        self.button_down(button)?;
+        self.button_up(button)?;
         Ok(())
     }
 
-    /// Release a bunch of keys.
-    ///
-    /// Use this instead of [`VirtualKeyboard::key_up`] if you need to release several keys at once
-    /// instead of activating a single [`Bind`].
-    pub fn keys_up(&mut self, keys: &[KeyCode]) -> io::Result<()> {
-        let events: Vec<InputEvent> = keys.iter().map(|&c| *KeyEvent::new(c, 0)).collect();
-        self.0.emit(&events)?;
+    /// Hold down a [`Button`].
+    pub fn button_down(&mut self, button: Button) -> io::Result<()> {
+        button.emit(&mut self.0, 1)?;
         Ok(())
     }
 
-    /// Push and release a bunch of keys.
-    ///
-    /// Use this instead of [`VirtualKeyboard::press`] if you need to press several keys at once
-    /// instead of activating a single [`Bind`].
-    pub fn press_keys(&mut self, keys: &[KeyCode]) -> io::Result<()> {
-        let mut events: Vec<InputEvent> = keys.iter().map(|&c| *KeyEvent::new(c, 1)).collect();
-        self.0.emit(&events)?;
-        events
-            .iter_mut()
-            .for_each(|e| *e = *KeyEvent::new(KeyCode(e.code()), 0));
-        self.0.emit(&events)?;
+    /// Release a held key [`Button`].
+    pub fn button_up(&mut self, button: Button) -> io::Result<()> {
+        button.emit(&mut self.0, 0)?;
         Ok(())
     }
 }
@@ -309,19 +311,31 @@ macro_rules! buttons {
             keys
         }
 
-        /// Map a key name to its [`KeyCode`].
-        ///
-        /// Return `None` if the name is not a valid key name.
-        /// The provided string is downcased before it is matched.
-        ///
-        /// See the module documentation for the list of supported keys and their names.
-        pub fn string_to_code(s: &str) -> Option<KeyCode> {
-            match s.to_lowercase().as_str() {
-                $(concat!("mouse", $mouse_idx) => Some($mouse_key),)*
-                $($mouse_name => Some($mouse_key),)*
-                $($($mod_name)|* => Some($mod_key),)*
-                $($key_name => Some($key_key),)*
-                _ => None
+        impl Button {
+            /// Create a button from its name.
+            ///
+            /// Return `None` if the name is not a valid key or mouse button name.
+            /// The provided string is downcased before it is matched.
+            ///
+            /// See the module documentation for the list of supported keys and their names.
+            pub fn from_name(s: &str) -> Option<Self> {
+                match s.to_lowercase().as_str() {
+                    $(concat!("mouse", $mouse_idx) => Some(Button($mouse_key)),)*
+                    $($mouse_name => Some(Button($mouse_key)),)*
+                    $($($mod_name)|* => Some(Button($mod_key)),)*
+                    $($key_name => Some(Button($key_key)),)*
+                    _ => None
+                }
+            }
+
+            /// Create a (mouse) button from its index.
+            ///
+            /// Indices 1 to 5 are supported. None is returned if another index is provided.
+            pub fn from_mouse_idx(button: u16) -> Option<Self> {
+                match button {
+                    $($mouse_idx => Some(Button($mouse_key)),)*
+                    _ => None
+                }
             }
         }
 
@@ -339,14 +353,13 @@ macro_rules! buttons {
                 }
             }
 
-            fn to_keycode(self) -> KeyCode {
+            fn to_button(self) -> Button {
                 match self {
-                    $($mod_mod => $mod_key,)*
+                    $($mod_mod => Button($mod_key),)*
                     _ => panic!("Invalid modifier variant"),
                 }
             }
         }
-
     };
 }
 

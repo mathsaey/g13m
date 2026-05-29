@@ -152,8 +152,8 @@ impl StaticDeviceHandler {
             self.held.insert(to_press);
             self.held.remove(to_release);
 
-            self.axis_action(to_press, VirtualKeyboard::key_down);
-            self.axis_action(to_release, VirtualKeyboard::key_up);
+            self.axis_action(to_press, VirtualKeyboard::bind_down);
+            self.axis_action(to_release, VirtualKeyboard::bind_up);
         }
     }
 
@@ -184,11 +184,11 @@ impl StaticDeviceHandler {
 
 impl DeviceHandler for StaticDeviceHandler {
     fn g_key_down(&mut self, key: u16) {
-        self.exec_bind_action(key, VirtualKeyboard::key_down);
+        self.exec_bind_action(key, VirtualKeyboard::bind_down);
     }
 
     fn g_key_up(&mut self, key: u16) {
-        self.exec_bind_action(key, VirtualKeyboard::key_up);
+        self.exec_bind_action(key, VirtualKeyboard::bind_up);
     }
 
     fn m_key_down(&mut self, key: u16) {
@@ -198,7 +198,7 @@ impl DeviceHandler for StaticDeviceHandler {
                 .unwrap_or_else(backlight_error);
         }
 
-        self.axis_action(self.held, VirtualKeyboard::key_up);
+        self.axis_action(self.held, VirtualKeyboard::bind_up);
         self.held = HeldDirections::empty();
     }
 
@@ -212,12 +212,7 @@ impl DeviceHandler for StaticDeviceHandler {
 }
 
 fn virtual_keyboard_error(error: io::Error, bind: Bind) {
-    log::error!(
-        "Could not press key ({:} {:}): {:}",
-        bind.0,
-        bind.1.0,
-        error
-    );
+    log::error!("Could not press bind ({:#?}): {:}", bind, error);
 }
 
 fn backlight_error(err: Error) {

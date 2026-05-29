@@ -32,7 +32,7 @@ use nom::{
 use g13m::{
     Rgb,
     handlers::static_handler::{Binds, Colors},
-    virtual_keyboard::{Bind, KeyCode, Modifiers, string_to_code},
+    virtual_keyboard::{Bind, Button, Modifiers},
 };
 
 #[derive(Debug, Clone)]
@@ -227,8 +227,8 @@ fn parse_bind(s: &str) -> Result<Bind, Error<&str>> {
         .map(|(_, v)| v)
 }
 
-fn parse_key(s: &str) -> IResult<&str, KeyCode> {
-    all_consuming(map_opt(rest, string_to_code)).parse(s)
+fn parse_key(s: &str) -> IResult<&str, Button> {
+    all_consuming(map_opt(rest, Button::from_name)).parse(s)
 }
 
 fn parse_modifiers(s: &str) -> IResult<&str, Modifiers> {
