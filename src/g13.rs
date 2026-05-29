@@ -475,8 +475,9 @@ impl Device {
                 backlight: self.backlight,
             })),
         };
-        let device_handler = handler.handler_for_device(device_ref.clone());
+        device_ref.reset();
 
+        let device_handler = handler.handler_for_device(device_ref.clone());
         let result = future::try_zip(
             device_loop(self.thumbstick, device_ref.clone(), device_handler.clone()),
             device_loop(self.keypad, device_ref.clone(), device_handler.clone()),
@@ -497,6 +498,13 @@ impl Device {
 impl HandledDeviceRef {
     fn dev(&self) -> MutexGuard<'_, HandledDevice> {
         self.device_ref.lock().unwrap()
+    }
+
+    fn reset(&self) {
+        for mode in 1..=3 {
+            self.set_mode_led(mode, RedLed::off);
+        }
+        self.set_mode(1);
     }
 
     /// Read the path of the handled device.

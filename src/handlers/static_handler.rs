@@ -103,7 +103,6 @@ impl StaticHandler {
 impl Handler for StaticHandler {
     #[allow(refining_impl_trait)]
     fn handler_for_device(&self, device_ref: HandledDeviceRef) -> StaticDeviceHandler {
-        device_ref.set_mode(1);
         if let Some(color) = self.colors[0] {
             device_ref
                 .set_backlight(color)
