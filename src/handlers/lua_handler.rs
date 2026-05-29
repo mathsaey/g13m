@@ -150,15 +150,15 @@ impl LuaDeviceHandler {
     fn bind_functions(&self) -> LuaResult<()> {
         self.bind_function(
             "PressKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::button_down),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::buttons_down),
         )?;
         self.bind_function(
             "ReleaseKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::button_up),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::buttons_up),
         )?;
         self.bind_function(
             "PressAndReleaseKey",
-            create_key_fun(self.keyboard.clone(), VirtualKeyboard::press_button),
+            create_key_fun(self.keyboard.clone(), VirtualKeyboard::press_buttons),
         )?;
 
         self.bind_function(
@@ -273,19 +273,19 @@ fn create_lua_not_implemented(name: &'static str) -> impl LuaNativeFn<(), Output
 
 fn create_key_fun(
     keyboard: Arc<Mutex<VirtualKeyboard>>,
-    fun: fn(&mut VirtualKeyboard, Button) -> io::Result<()>,
+    fun: fn(&mut VirtualKeyboard, &[Button]) -> io::Result<()>,
 ) -> impl LuaNativeFn<(LuaVariadic<LuaValue>,), Output = LuaResult<()>> {
     move |args: LuaVariadic<LuaValue>| {
         let mut kb = keyboard.lock().unwrap();
-        args.iter()
+        let buttons: Vec<Button> = args.iter()
             .filter_map(|val| match val {
                 LuaValue::Integer(code) => Some(Button::from_key_code(*code as u16)),
                 LuaValue::String(name) => name.to_str().as_deref().ok().and_then(Button::from_name),
                 _ => None,
             })
-            .for_each(|btn| {
-                fun(&mut kb, btn).unwrap_or_else(|err| virtual_keyboard_error(err, btn))
-            });
+        .collect();
+
+        fun(&mut kb, &buttons).unwrap_or_else(|err| virtual_keyboard_error(err, &buttons));
 
         Ok(())
     }
@@ -376,6 +376,6 @@ fn create_output_debug_message(
     }
 }
 
-fn virtual_keyboard_error(error: io::Error, button: Button) {
-    log::error!("Could not press button ({:#?}): {:}", button, error);
+fn virtual_keyboard_error(error: io::Error, buttons: &[Button]) {
+    log::error!("Could not press buttons ({:#?}): {:}", buttons, error);
 }

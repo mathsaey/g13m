@@ -295,6 +295,27 @@ impl VirtualKeyboard {
         button.emit(&mut self.0, 0)?;
         Ok(())
     }
+
+    pub fn press_buttons(&mut self, buttons: &[Button]) -> io::Result<()> {
+        self.buttons_down(buttons)?;
+        self.buttons_up(buttons)?;
+        Ok(())
+    }
+
+    pub fn buttons_down(&mut self, buttons: &[Button]) -> io::Result<()> {
+        for button in buttons {
+            button.emit(&mut self.0, 1)?;
+        }
+        Ok(())
+    }
+
+    pub fn buttons_up(&mut self, buttons: &[Button]) -> io::Result<()> {
+        for button in buttons {
+            button.emit(&mut self.0, 0)?;
+        }
+        Ok(())
+    }
+
 }
 
 macro_rules! buttons {
