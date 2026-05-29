@@ -15,14 +15,17 @@
 //! Virtual keyboard device for emulating keypresses
 //!
 //! This module defines the [`VirtualKeyboard`] struct, which can be used to create a virtual
-//! keyboard device. This device can then be used to press keys. This is used by the various
-//! [`crate::DeviceHandler`] to "press" keys in response to events occuring on the G13 device.
+//! keyboard device. This device can then be used to press buttons representing keyboard keypresses
+//! or mouse button presses. This is used by the various [`crate::DeviceHandler`] to "press"
+//! buttons in response to events occuring on the G13 device.
 //!
 //! ## Supported Keys
 //!
-//! The virtual keyboard can only be used to press certain keys.
-//! The following table lists the supported keys and the names [`string_to_code`] will accept for
-//! them.
+//! The virtual keyboard can only be used to press certain buttons.
+//! The following table lists the supported buttons, their keycodes, and the names
+//! [`string_to_code`] will accept for them.
+//!
+//! Modifiers:
 //!
 //! | [`KeyCode`] | [`string_to_code`] names |
 //! | ----------- | ------------------------ |
@@ -34,6 +37,21 @@
 //! | [`KeyCode::KEY_RIGHTCTRL`] | rctrl |
 //! | [`KeyCode::KEY_LEFTMETA`] | meta, lmeta, super, lsuper |
 //! | [`KeyCode::KEY_RIGHTMETA`] | rmeta, rsuper |
+//!
+//! Mouse buttons:
+//!
+//! | [`KeyCode`] | [`string_to_code`] names |
+//! | ----------- | ------------------------ |
+//! | [`KeyCode::BTN_LEFT`] | mouse1, mouse left |
+//! | [`KeyCode::BTN_MIDDLE`] | mouse2, mouse middle |
+//! | [`KeyCode::BTN_RIGHT`] | mouse3, mouse right |
+//! | [`KeyCode::BTN_EXTRA`] | mouse4, mouse extra |
+//! | [`KeyCode::BTN_SIDE`] | mouse5, mouse side |
+//!
+//! Regular keys:
+//!
+//! | [`KeyCode`] | [`string_to_code`] names |
+//! | ----------- | ------------------------ |
 //! | [`KeyCode::KEY_ESC`] | esc |
 //! | [`KeyCode::KEY_ENTER`] | enter |
 //! | [`KeyCode::KEY_BACKSPACE`] | backspace |
@@ -99,11 +117,6 @@
 //! | [`KeyCode::KEY_F10`] | f10 |
 //! | [`KeyCode::KEY_F11`] | f11 |
 //! | [`KeyCode::KEY_F12`] | f12 |
-//! | [`KeyCode::BTN_LEFT`] | mouse1 |
-//! | [`KeyCode::BTN_MIDDLE`] | mouse2 |
-//! | [`KeyCode::BTN_RIGHT`] | mouse3 |
-//! | [`KeyCode::BTN_EXTRA`] | mouse4 |
-//! | [`KeyCode::BTN_SIDE`] | mouse5 |
 
 use bitflags::bitflags;
 use evdev::{AttributeSet, InputEvent, KeyEvent, uinput::VirtualDevice};
@@ -287,13 +300,17 @@ impl VirtualKeyboard {
     }
 }
 
-macro_rules! supported_keys {
-    ($(($keystring:expr, $keycode:expr)),* $(,)?) => {
+macro_rules! buttons {
+    (
+        mouse: [ $( ($mouse_key:expr, $mouse_idx: expr, $mouse_name: expr) ),* $(,)? ],
+        modifiers: [ $( ($mod_key:expr, $mod_mod:path, [$($mod_name: expr),+]) ),* $(,)? ],
+        keys: [ $( ($key_key:expr, $key_name: expr) ),* $(,)? ]
+    ) => {
         fn supported_keys() -> AttributeSet<KeyCode> {
             let mut keys = AttributeSet::<KeyCode>::new();
-
-            $(keys.insert($keycode);)*
-
+            $(keys.insert($mouse_key);)*
+            $(keys.insert($mod_key);)*
+            $(keys.insert($key_key);)*
             keys
         }
 
@@ -305,103 +322,94 @@ macro_rules! supported_keys {
         /// See the module documentation for the list of supported keys and their names.
         pub fn string_to_code(s: &str) -> Option<KeyCode> {
             match s.to_lowercase().as_str() {
-                $($keystring => Some($keycode),)*
+                $(concat!("mouse", $mouse_idx) => Some($mouse_key),)*
+                $($mouse_name => Some($mouse_key),)*
+                $($($mod_name)|* => Some($mod_key),)*
+                $($key_name => Some($key_key),)*
                 _ => None
             }
         }
+
     };
 }
 
-supported_keys!(
-    // Modifiers must be included here, or they can't be pressed by the virtual keyboard.
-    // Make sure the names here match those in config::parse_modifiers for consistency.
-    ("shift", KeyCode::KEY_LEFTSHIFT),
-    ("lshift", KeyCode::KEY_LEFTSHIFT),
-    ("rshift", KeyCode::KEY_RIGHTSHIFT),
-    ("alt", KeyCode::KEY_LEFTALT),
-    ("lalt", KeyCode::KEY_LEFTALT),
-    ("ralt", KeyCode::KEY_RIGHTALT),
-    ("altgr", KeyCode::KEY_RIGHTALT),
-    ("ctrl", KeyCode::KEY_LEFTCTRL),
-    ("lctrl", KeyCode::KEY_LEFTCTRL),
-    ("rctrl", KeyCode::KEY_RIGHTCTRL),
-    ("meta", KeyCode::KEY_LEFTMETA),
-    ("lmeta", KeyCode::KEY_LEFTMETA),
-    ("rmeta", KeyCode::KEY_RIGHTMETA),
-    ("super", KeyCode::KEY_LEFTMETA),
-    ("lsuper", KeyCode::KEY_LEFTMETA),
-    ("rsuper", KeyCode::KEY_RIGHTMETA),
-    //
-    ("esc", KeyCode::KEY_ESC),
-    ("enter", KeyCode::KEY_ENTER),
-    ("backspace", KeyCode::KEY_BACKSPACE),
-    ("tab", KeyCode::KEY_TAB),
-    ("capslock", KeyCode::KEY_CAPSLOCK),
-    ("space", KeyCode::KEY_SPACE),
-    //
-    ("1", KeyCode::KEY_1),
-    ("2", KeyCode::KEY_2),
-    ("3", KeyCode::KEY_3),
-    ("4", KeyCode::KEY_4),
-    ("5", KeyCode::KEY_5),
-    ("6", KeyCode::KEY_6),
-    ("7", KeyCode::KEY_7),
-    ("8", KeyCode::KEY_8),
-    ("9", KeyCode::KEY_9),
-    ("0", KeyCode::KEY_0),
-    ("-", KeyCode::KEY_MINUS),
-    ("=", KeyCode::KEY_EQUAL),
-    ("q", KeyCode::KEY_Q),
-    ("w", KeyCode::KEY_W),
-    ("e", KeyCode::KEY_E),
-    ("r", KeyCode::KEY_R),
-    ("t", KeyCode::KEY_T),
-    ("y", KeyCode::KEY_Y),
-    ("u", KeyCode::KEY_U),
-    ("i", KeyCode::KEY_I),
-    ("o", KeyCode::KEY_O),
-    ("p", KeyCode::KEY_P),
-    ("[", KeyCode::KEY_LEFTBRACE),
-    ("]", KeyCode::KEY_RIGHTBRACE),
-    ("a", KeyCode::KEY_A),
-    ("s", KeyCode::KEY_S),
-    ("d", KeyCode::KEY_D),
-    ("f", KeyCode::KEY_F),
-    ("g", KeyCode::KEY_G),
-    ("h", KeyCode::KEY_H),
-    ("j", KeyCode::KEY_J),
-    ("k", KeyCode::KEY_K),
-    ("l", KeyCode::KEY_L),
-    (";", KeyCode::KEY_SEMICOLON),
-    ("'", KeyCode::KEY_APOSTROPHE),
-    ("~", KeyCode::KEY_GRAVE),
-    (r"\", KeyCode::KEY_BACKSLASH),
-    ("z", KeyCode::KEY_Z),
-    ("x", KeyCode::KEY_X),
-    ("c", KeyCode::KEY_C),
-    ("v", KeyCode::KEY_V),
-    ("b", KeyCode::KEY_B),
-    ("n", KeyCode::KEY_N),
-    ("m", KeyCode::KEY_M),
-    (",", KeyCode::KEY_COMMA),
-    (".", KeyCode::KEY_DOT),
-    ("/", KeyCode::KEY_SLASH),
-    ("f1", KeyCode::KEY_F1),
-    ("f2", KeyCode::KEY_F2),
-    ("f3", KeyCode::KEY_F3),
-    ("f4", KeyCode::KEY_F4),
-    ("f5", KeyCode::KEY_F5),
-    ("f6", KeyCode::KEY_F6),
-    ("f7", KeyCode::KEY_F7),
-    ("f8", KeyCode::KEY_F8),
-    ("f9", KeyCode::KEY_F9),
-    ("f10", KeyCode::KEY_F10),
-    ("f11", KeyCode::KEY_F11),
-    ("f12", KeyCode::KEY_F12),
-    //
-    ("mouse1", KeyCode::BTN_LEFT),
-    ("mouse2", KeyCode::BTN_MIDDLE),
-    ("mouse3", KeyCode::BTN_RIGHT),
-    ("mouse4", KeyCode::BTN_EXTRA),
-    ("mouse5", KeyCode::BTN_SIDE),
+buttons!(
+    mouse: [
+        (KeyCode::BTN_LEFT, 1, "mouse left"),
+        (KeyCode::BTN_MIDDLE, 2, "mouse middle"),
+        (KeyCode::BTN_RIGHT, 3, "mouse right"),
+        (KeyCode::BTN_EXTRA, 4, "mouse extra"),
+        (KeyCode::BTN_SIDE, 5, "mouse side"),
+    ],
+    modifiers: [
+        (KeyCode::KEY_LEFTSHIFT, Modifiers::L_SHIFT, ["shift", "lshift"]),
+        (KeyCode::KEY_RIGHTSHIFT, Modifiers::R_SHIFT, ["rshift"]),
+        (KeyCode::KEY_LEFTALT, Modifiers::L_ALT, ["alt", "lalt"]),
+        (KeyCode::KEY_RIGHTALT, Modifiers::R_ALT, ["ralt", "altgr"]),
+        (KeyCode::KEY_LEFTCTRL, Modifiers::L_CTRL, ["ctrl", "lctrl"]),
+        (KeyCode::KEY_RIGHTCTRL, Modifiers::R_CTRL, ["rctrl"]),
+        (KeyCode::KEY_LEFTMETA, Modifiers::L_META, ["meta", "super", "lmeta", "lsuper"]),
+        (KeyCode::KEY_RIGHTMETA, Modifiers::R_META, ["rmeta", "rsuper"]),
+    ],
+    keys: [
+        (KeyCode::KEY_1, "1"),
+        (KeyCode::KEY_2, "2"),
+        (KeyCode::KEY_3, "3"),
+        (KeyCode::KEY_4, "4"),
+        (KeyCode::KEY_5, "5"),
+        (KeyCode::KEY_6, "6"),
+        (KeyCode::KEY_7, "7"),
+        (KeyCode::KEY_8, "8"),
+        (KeyCode::KEY_9, "9"),
+        (KeyCode::KEY_0, "0"),
+        (KeyCode::KEY_MINUS, "-"),
+        (KeyCode::KEY_EQUAL, "="),
+        (KeyCode::KEY_Q, "q"),
+        (KeyCode::KEY_W, "w"),
+        (KeyCode::KEY_E, "e"),
+        (KeyCode::KEY_R, "r"),
+        (KeyCode::KEY_T, "t"),
+        (KeyCode::KEY_Y, "y"),
+        (KeyCode::KEY_U, "u"),
+        (KeyCode::KEY_I, "i"),
+        (KeyCode::KEY_O, "o"),
+        (KeyCode::KEY_P, "p"),
+        (KeyCode::KEY_LEFTBRACE, "["),
+        (KeyCode::KEY_RIGHTBRACE, "]"),
+        (KeyCode::KEY_A, "a"),
+        (KeyCode::KEY_S, "s"),
+        (KeyCode::KEY_D, "d"),
+        (KeyCode::KEY_F, "f"),
+        (KeyCode::KEY_G, "g"),
+        (KeyCode::KEY_H, "h"),
+        (KeyCode::KEY_J, "j"),
+        (KeyCode::KEY_K, "k"),
+        (KeyCode::KEY_L, "l"),
+        (KeyCode::KEY_SEMICOLON, ";"),
+        (KeyCode::KEY_APOSTROPHE, "'"),
+        (KeyCode::KEY_GRAVE, "~"),
+        (KeyCode::KEY_BACKSLASH, r"\"),
+        (KeyCode::KEY_Z, "z"),
+        (KeyCode::KEY_X, "x"),
+        (KeyCode::KEY_C, "c"),
+        (KeyCode::KEY_V, "v"),
+        (KeyCode::KEY_B, "b"),
+        (KeyCode::KEY_N, "n"),
+        (KeyCode::KEY_M, "m"),
+        (KeyCode::KEY_COMMA, ","),
+        (KeyCode::KEY_DOT, "."),
+        (KeyCode::KEY_SLASH, "/"),
+        (KeyCode::KEY_F1, "f1"),
+        (KeyCode::KEY_F2, "f2"),
+        (KeyCode::KEY_F3, "f3"),
+        (KeyCode::KEY_F4, "f4"),
+        (KeyCode::KEY_F5, "f5"),
+        (KeyCode::KEY_F6, "f6"),
+        (KeyCode::KEY_F7, "f7"),
+        (KeyCode::KEY_F8, "f8"),
+        (KeyCode::KEY_F9, "f9"),
+        (KeyCode::KEY_F10, "f10"),
+        (KeyCode::KEY_F11, "f11"),
+        (KeyCode::KEY_F12, "f12"),
+    ]
 );
