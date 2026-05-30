@@ -16,7 +16,7 @@ bin = ["dep:clap", "dep:env_logger", "dep:async-executor", "dep:rust-ini", "dep:
 
 virtual_keyboard = ["dep:bitflags"]
 handler_static = ["virtual_keyboard"]
-handler_lua = ["virtual_keyboard"]
+handler_lua = ["virtual_keyboard", "dep:mlua"]
 
 handler_luajit = ["handler_lua", "mlua/luajit"]
 handler_lua55 = ["handler_lua", "mlua/lua55"]
