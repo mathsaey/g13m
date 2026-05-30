@@ -1,0 +1,9 @@
+[Unit]
+Description=Key mapper for Logitech G13 devices
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/g13m -p %i
+
+[Install]
+DefaultInstance=default
