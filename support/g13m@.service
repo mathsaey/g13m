@@ -7,3 +7,4 @@ ExecStart=/usr/bin/g13m -p %i
 
 [Install]
 DefaultInstance=default
+WantedBy=graphical-session.target
